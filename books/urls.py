@@ -6,7 +6,7 @@ app_name = "books"
 
 
 router = DefaultRouter()
-router.register("books", BookViewSet, basename="books")
+router.register("", BookViewSet, basename="books")
 
 urlpatterns = [
     path("", include(router.urls)),
