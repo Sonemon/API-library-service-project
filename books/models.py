@@ -16,5 +16,14 @@ class Book(models.Model):
         max_digits=5, decimal_places=2, validators=[MinValueValidator(0)]
     )
 
+    class Meta:
+        ordering = ["title"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["title", "author", "cover"],
+                name="unique_book_title_author_cover"
+            )
+        ]
+
     def __str__(self):
         return f"{self.title} by {self.author}"
