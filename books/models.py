@@ -21,7 +21,7 @@ class Book(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["title", "author", "cover"],
-                name="unique_book_title_author_cover"
+                name="unique_book_title_author_cover",
             )
         ]
 
