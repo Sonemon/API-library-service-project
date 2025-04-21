@@ -5,6 +5,8 @@ from rest_framework import serializers
 from borrowings.models import Borrowing
 from books.models import Book
 from books.serializers import BookSerializer
+from telegram_notifications.message_builder import build_borrowing_created_message
+from telegram_notifications.telegram import send_telegram_message
 from users.serializers import UserSerializer
 
 
@@ -58,15 +60,12 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
             return value
 
         def create(self, validated_data):
-            book = validated_data["book"]
-            user = validated_data["user"]
-            expected_return_date = validated_data["expected_return_date"]
+            borrowing = Borrowing.objects.create(**validated_data)
 
-            return Borrowing.objects.create(
-                book=book,
-                user=user,
-                expected_return_date=expected_return_date
-            )
+            message = build_borrowing_created_message(borrowing)
+            send_telegram_message(message)
+
+            return borrowing
 
 
 class BorrowingReturnSerializer(serializers.ModelSerializer):
