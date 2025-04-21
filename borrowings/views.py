@@ -33,3 +33,41 @@ class BorrowingCreateView(generics.CreateAPIView):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class BorrowingReturnView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            borrowing = Borrowing.objects.get(pk=pk)
+        except Borrowing.DoesNotExist:
+            return Response(
+                {"detail": "Borrowing not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not request.user.is_staff and borrowing.user != request.user:
+            return Response(
+                {"detail": "You do not have permission to return this borrowing."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        serializer = BorrowingReturnSerializer(
+            instance=borrowing,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        return Response(
+            {
+                "detail": "Book returned successfully.",
+                "borrowing": {
+                    "id": borrowing.id,
+                    "actual_return_date": borrowing.actual_return_date
+                }
+            },
+            status=status.HTTP_200_OK
+        )
