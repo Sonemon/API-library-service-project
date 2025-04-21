@@ -15,8 +15,10 @@ def send_telegram_message(message: str):
     data = {
         "chat_id": CHAT_ID,
         "text": message,
-        "parse_mode": "Markdown"
     }
 
+    print(f"==> Sending message to Telegram:\n{data}\nURL: {TELEGRAM_API_URL}")
     response = requests.post(TELEGRAM_API_URL, data=data)
+
+    print(f"==> Telegram response:\nStatus code: {response.status_code}\nText: {response.text}")
     response.raise_for_status()
