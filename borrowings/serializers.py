@@ -5,7 +5,7 @@ from rest_framework import serializers
 from borrowings.models import Borrowing
 from books.models import Book
 from books.serializers import BookSerializer
-from telegram_notifications.message_builder import build_borrowing_created_message
+from telegram_notifications.message_builder import build_borrowing_created_message, build_borrowing_closed_message
 from telegram_notifications.telegram import send_telegram_message
 from users.serializers import UserSerializer
 
@@ -75,4 +75,10 @@ class BorrowingReturnSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.return_borrowing()
+        instance.save()
+
+        if instance.actual_return_date:
+            message = build_borrowing_closed_message(instance)
+            send_telegram_message(message)
+
         return instance
