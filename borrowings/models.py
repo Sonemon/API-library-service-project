@@ -1,19 +1,23 @@
-from datetime import date
+from datetime import timedelta
 
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils import timezone
 from books.models import Book
 from users.models import User
 
 
+def get_default_expected_return_date():
+    return timezone.localdate() + timedelta(days=7)
+
+
 class Borrowing(models.Model):
-    borrow_date = models.DateField(auto_now_add=True)
+    borrow_date = models.DateTimeField(auto_now_add=True)
     expected_return_date = models.DateField(
-        validators=[MinValueValidator(timezone.now().date())],
+        default=get_default_expected_return_date,
     )
-    actual_return_date = models.DateField(null=True, blank=True)
+    actual_return_date = models.DateTimeField(null=True, blank=True)
+
     book = models.ForeignKey(
         Book,
         on_delete=models.PROTECT,
@@ -29,20 +33,34 @@ class Borrowing(models.Model):
         ordering = ["-borrow_date"]
 
     def __str__(self):
-        return f"{self.user.email} | {self.book.title} ({self.borrow_date})"
+        return f"{self.user.email} | {self.book.title} ({self.borrow_date.date()})"
+
+    def clean(self):
+        if self.expected_return_date and self.expected_return_date < timezone.localdate():
+            raise ValidationError("Expected return date must be in the future.")
+
+        if not self.pk and self.book.inventory < 1:
+            raise ValidationError("This book is out of stock.")
 
     def save(self, *args, **kwargs):
+        is_new = not self.pk
+
+        self.full_clean()
+
         with transaction.atomic():
-            is_new = not self.pk
-
             if is_new:
-                if self.expected_return_date < date.today():
-                    raise ValidationError("Date of return must be in the future")
-
-                if self.book.inventory < 1:
-                    raise ValidationError("This book is out of stock")
-
                 self.book.inventory -= 1
                 self.book.save()
 
             super().save(*args, **kwargs)
+
+    def return_borrowing(self):
+        with transaction.atomic():
+            if self.actual_return_date:
+                raise ValidationError("This book has already been returned.")
+
+            self.book.inventory += 1
+            self.book.save()
+
+            self.actual_return_date = timezone.now()
+            self.save()
