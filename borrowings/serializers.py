@@ -1,3 +1,6 @@
+from datetime import date
+
+from django.core.validators import MinValueValidator
 from rest_framework import serializers
 from django.utils import timezone
 
@@ -27,6 +30,9 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(
         default=serializers.CurrentUserDefault()
     )
+    book = serializers.PrimaryKeyRelatedField(
+        queryset=Book.objects.filter(inventory__gt=0),
+    )
 
     class Meta:
         model = Borrowing
@@ -37,17 +43,30 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {
             "book": {"required": True},
-            "expected_return_date": {"required": True},
+            "expected_return_date": {
+                "required": True,
+                "validators": [MinValueValidator(date.today())]
+            },
         }
 
         def validate_book(self, book: Book):
-            if book.inventory <= 0:
-                raise serializers.ValidationError("This book is out of stock.")
+            if book.inventory < 1:
+                raise serializers.ValidationError(
+                    {
+                        "book": f"Book {book.title} is out of stock",
+                        "available": False,
+                        "inventory": 0
+                    }
+                )
             return book
 
-        def validate(self, attrs):
-            if attrs['expected_return_date'] <= timezone.now().date():
-                raise serializers.ValidationError({
-                    'expected_return_date': 'Return date must be in the future'
-                })
-            return attrs
+        def create(self, validated_data):
+            book = validated_data["book"]
+            user = validated_data["user"]
+            expected_return_date = validated_data["expected_return_date"]
+
+            return Borrowing.objects.create(
+                book=book,
+                user=user,
+                expected_return_date=expected_return_date
+            )
