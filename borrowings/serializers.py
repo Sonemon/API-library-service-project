@@ -1,8 +1,6 @@
-from datetime import date
-
-from django.core.validators import MinValueValidator
-from rest_framework import serializers
 from django.utils import timezone
+
+from rest_framework import serializers
 
 from borrowings.models import Borrowing
 from books.models import Book
@@ -10,7 +8,7 @@ from books.serializers import BookSerializer
 from users.serializers import UserSerializer
 
 
-class BorrowingSerializer(serializers.Serializer):
+class BorrowingSerializer(serializers.ModelSerializer):
     book = BookSerializer(read_only=True)
     user = UserSerializer(read_only=True)
 
@@ -37,17 +35,11 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Borrowing
         fields = [
+            "id",
             "book",
             "expected_return_date",
             "user"
         ]
-        extra_kwargs = {
-            "book": {"required": True},
-            "expected_return_date": {
-                "required": True,
-                "validators": [MinValueValidator(date.today())]
-            },
-        }
 
         def validate_book(self, book: Book):
             if book.inventory < 1:
@@ -60,6 +52,11 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
                 )
             return book
 
+        def validate_expected_return_date(self, value):
+            if value < timezone.localdate():
+                raise serializers.ValidationError("Expected return date must be in the future.")
+            return value
+
         def create(self, validated_data):
             book = validated_data["book"]
             user = validated_data["user"]
@@ -70,3 +67,13 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
                 user=user,
                 expected_return_date=expected_return_date
             )
+
+
+class BorrowingReturnSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Borrowing
+        fields = ["id"]
+
+    def update(self, instance, validated_data):
+        instance.return_borrowing()
+        return instance
