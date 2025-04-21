@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
@@ -29,21 +31,17 @@ class Borrowing(models.Model):
     def __str__(self):
         return f"{self.user.email} | {self.book.title} ({self.borrow_date})"
 
-    def clean(self):
-        if self.expected_return_date <= self.borrow_date:
-            raise ValidationError("Expected return date must be after borrow date.")
-
-        if self.actual_return_date and self.actual_return_date < self.borrow_date:
-            raise ValidationError("Actual return date cannot be before borrow date.")
-
-        if not self.pk and self.book.inventory <= 0:
-            raise ValidationError("No available copies of this book.")
-
     def save(self, *args, **kwargs):
         with transaction.atomic():
-            self.full_clean()
+            is_new = not self.pk
 
-            if not self.pk:
+            if is_new:
+                if self.expected_return_date < date.today():
+                    raise ValidationError("Date of return must be in the future")
+
+                if self.book.inventory < 1:
+                    raise ValidationError("This book is out of stock")
+
                 self.book.inventory -= 1
                 self.book.save()
 
