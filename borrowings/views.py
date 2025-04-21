@@ -5,6 +5,8 @@ from rest_framework.views import APIView
 
 from borrowings.models import Borrowing
 from borrowings.serializers import BorrowingSerializer, BorrowingCreateSerializer, BorrowingReturnSerializer
+from telegram_notifications.message_builder import build_borrowing_created_message, build_borrowing_closed_message
+from telegram_notifications.telegram import send_telegram_message
 
 
 class BaseBorrowingView(generics.GenericAPIView):
@@ -32,7 +34,9 @@ class BorrowingCreateView(generics.CreateAPIView):
     permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        borrowing = serializer.save(user=self.request.user)
+        message = build_borrowing_created_message(borrowing)
+        send_telegram_message(message)
 
 
 class BorrowingReturnView(APIView):
@@ -59,7 +63,10 @@ class BorrowingReturnView(APIView):
             partial=True
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        instance = serializer.save()
+        if instance.actual_return_date:
+            message = build_borrowing_closed_message(instance)
+            send_telegram_message(message)
 
         return Response(
             {
