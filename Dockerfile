@@ -9,15 +9,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 RUN adduser \
     --disabled-password \
     --no-create-home \
     my_user
 
-RUN chown -R my_user:my_user /app
-
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN chown -R my_user:my_user /app /entrypoint.sh
 
 USER my_user
 
