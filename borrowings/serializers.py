@@ -58,15 +58,9 @@ class BorrowingCreateSerializer(serializers.ModelSerializer):
             return value
 
         def create(self, validated_data):
-            book = validated_data["book"]
-            user = validated_data["user"]
-            expected_return_date = validated_data["expected_return_date"]
+            borrowing = Borrowing.objects.create(**validated_data)
 
-            return Borrowing.objects.create(
-                book=book,
-                user=user,
-                expected_return_date=expected_return_date
-            )
+            return borrowing
 
 
 class BorrowingReturnSerializer(serializers.ModelSerializer):
@@ -76,4 +70,6 @@ class BorrowingReturnSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.return_borrowing()
+        instance.save()
+
         return instance
